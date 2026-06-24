@@ -368,6 +368,8 @@ prepare_dirs() {
   mkdir -p \
     "${TP_DATA}" \
     "${WEB_PATH}" \
+    "${TP_DATA}/mariadb/data" \
+    "${TP_DATA}/redis/data" \
     "${TP_DATA}/trojan-panel/webfile" \
     "${TP_DATA}/trojan-panel/logs" \
     "${TP_DATA}/trojan-panel/config" \
@@ -381,6 +383,27 @@ prepare_dirs() {
     "${TP_DATA}/trojan-panel-core/config" \
     "${TP_DATA}/custom/web-caddy" \
     "${TP_DATA}/custom/node-caddy"
+}
+
+persist_container_path() {
+  local name="$1"
+  local src="$2"
+  local dst="$3"
+
+  mkdir -p "${dst}"
+  if ! container_exists "${name}"; then
+    return
+  fi
+  if find "${dst}" -mindepth 1 -print -quit 2>/dev/null | grep -q .; then
+    return
+  fi
+
+  echo_content green "---> Persist ${name} data: ${src} -> ${dst}"
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  docker cp "${name}:${src}/." "${tmp_dir}/"
+  cp -a "${tmp_dir}/." "${dst}/"
+  rm -rf "${tmp_dir}"
 }
 
 write_panel_runtime_config() {
@@ -640,6 +663,7 @@ EOF
 }
 
 deploy_mariadb() {
+  persist_container_path "${MARIADB_CONTAINER}" "/var/lib/mysql" "${TP_DATA}/mariadb/data"
   remove_container_if_force "${MARIADB_CONTAINER}"
   if container_running "${MARIADB_CONTAINER}"; then
     echo_content skyBlue "---> MariaDB already running"
@@ -657,6 +681,7 @@ deploy_mariadb() {
     -e MYSQL_DATABASE="${MARIADB_DATABASE}" \
     -e MYSQL_ROOT_PASSWORD="${MARIADB_PASSWORD}" \
     -e TZ=Asia/Shanghai \
+    -v "${TP_DATA}/mariadb/data:/var/lib/mysql" \
     "${MARIADB_IMAGE}" \
     --port "${MARIADB_PORT}" \
     --character-set-server=utf8mb4 \
@@ -666,6 +691,7 @@ deploy_mariadb() {
 }
 
 deploy_redis() {
+  persist_container_path "${REDIS_CONTAINER}" "/data" "${TP_DATA}/redis/data"
   remove_container_if_force "${REDIS_CONTAINER}"
   if container_running "${REDIS_CONTAINER}"; then
     echo_content skyBlue "---> Redis already running"
@@ -679,6 +705,7 @@ deploy_redis() {
   ensure_image "${REDIS_IMAGE}"
   docker run -d --name "${REDIS_CONTAINER}" --restart always \
     --network=host \
+    -v "${TP_DATA}/redis/data:/data" \
     "${REDIS_IMAGE}" redis-server --requirepass "${REDIS_PASSWORD}" --port "${REDIS_PORT}"
   wait_for_container "${REDIS_CONTAINER}"
 }
