@@ -26,6 +26,7 @@ BUILD_CORE="${BUILD_CORE:-1}"
 BUILD_NAIVEPROXY="${BUILD_NAIVEPROXY:-1}"
 SAVE_IMAGES="${SAVE_IMAGES:-1}"
 ARCHIVE_NAME="${ARCHIVE_NAME:-}"
+DOCKER=(docker)
 
 usage() {
   cat <<EOF
@@ -155,7 +156,7 @@ parse_platform() {
 
 docker_build_with_target_args() {
   local image="$1"
-  docker build --platform "${PLATFORM}" \
+  "${DOCKER[@]}" build --platform "${PLATFORM}" \
     --build-arg TARGETOS="${GOOS_VALUE}" \
     --build-arg TARGETARCH="${GOARCH_VALUE}" \
     --build-arg TARGETVARIANT="${TARGETVARIANT_VALUE}" \
@@ -167,6 +168,19 @@ require_cmd() {
     echo "Missing required command: $1" >&2
     exit 1
   fi
+}
+
+detect_docker() {
+  if docker ps >/dev/null 2>&1; then
+    DOCKER=(docker)
+    return
+  fi
+  if command -v sudo >/dev/null 2>&1 && sudo -n docker ps >/dev/null 2>&1; then
+    DOCKER=(sudo -n docker)
+    return
+  fi
+  echo "Cannot connect to Docker daemon. Run as a Docker-enabled user or configure passwordless sudo for docker." >&2
+  exit 1
 }
 
 sync_repo() {
@@ -213,31 +227,31 @@ build_ui() {
   (
     cd "${UI_DIR}"
     if command -v yarn >/dev/null 2>&1; then
-      yarn install --frozen-lockfile
-      yarn build
+      yarn install --frozen-lockfile --ignore-engines
+      NODE_OPTIONS="${NODE_OPTIONS:---openssl-legacy-provider}" yarn build
     elif command -v npm >/dev/null 2>&1; then
-      npm install
-      npm run build
+      npm install --legacy-peer-deps
+      NODE_OPTIONS="${NODE_OPTIONS:---openssl-legacy-provider}" npm run build
     else
       echo "Missing yarn or npm" >&2
       exit 1
     fi
-    docker build --platform "${PLATFORM}" -t "${UI_IMAGE}" .
+    "${DOCKER[@]}" build --platform "${PLATFORM}" -t "${UI_IMAGE}" .
   )
 }
 
 copy_core_binary_from_official_image() {
   local container_id
-  docker pull --platform "${PLATFORM}" "${OFFICIAL_CORE_IMAGE}"
-  container_id="$(docker create --platform "${PLATFORM}" "${OFFICIAL_CORE_IMAGE}")"
-  trap 'docker rm -f "${container_id}" >/dev/null 2>&1 || true' RETURN
+  "${DOCKER[@]}" pull --platform "${PLATFORM}" "${OFFICIAL_CORE_IMAGE}"
+  container_id="$("${DOCKER[@]}" create --platform "${PLATFORM}" "${OFFICIAL_CORE_IMAGE}")"
+  trap '"${DOCKER[@]}" rm -f "${container_id}" >/dev/null 2>&1 || true' RETURN
 
-  docker cp "${container_id}:/tpdata/trojan-panel-core/bin/xray/xray" "${CORE_DIR}/build/xray-${TARGET_SUFFIX}"
-  docker cp "${container_id}:/tpdata/trojan-panel-core/bin/trojango/trojan-go" "${CORE_DIR}/build/trojan-go-${TARGET_SUFFIX}"
-  docker cp "${container_id}:/tpdata/trojan-panel-core/bin/hysteria/hysteria" "${CORE_DIR}/build/hysteria-${TARGET_SUFFIX}"
-  docker cp "${container_id}:/tpdata/trojan-panel-core/bin/naiveproxy/naiveproxy" "${CORE_DIR}/build/naiveproxy-${TARGET_SUFFIX}"
-  docker cp "${container_id}:/tpdata/trojan-panel-core/bin/hysteria2/hysteria2" "${CORE_DIR}/build/hysteria2-${TARGET_SUFFIX}"
-  docker rm -f "${container_id}" >/dev/null
+  "${DOCKER[@]}" cp "${container_id}:/tpdata/trojan-panel-core/bin/xray/xray" "${CORE_DIR}/build/xray-${TARGET_SUFFIX}"
+  "${DOCKER[@]}" cp "${container_id}:/tpdata/trojan-panel-core/bin/trojango/trojan-go" "${CORE_DIR}/build/trojan-go-${TARGET_SUFFIX}"
+  "${DOCKER[@]}" cp "${container_id}:/tpdata/trojan-panel-core/bin/hysteria/hysteria" "${CORE_DIR}/build/hysteria-${TARGET_SUFFIX}"
+  "${DOCKER[@]}" cp "${container_id}:/tpdata/trojan-panel-core/bin/naiveproxy/naiveproxy" "${CORE_DIR}/build/naiveproxy-${TARGET_SUFFIX}"
+  "${DOCKER[@]}" cp "${container_id}:/tpdata/trojan-panel-core/bin/hysteria2/hysteria2" "${CORE_DIR}/build/hysteria2-${TARGET_SUFFIX}"
+  "${DOCKER[@]}" rm -f "${container_id}" >/dev/null
   trap - RETURN
 }
 
@@ -343,7 +357,7 @@ save_images() {
   mkdir -p "$(dirname "${archive}")"
 
   echo "---> Save Docker images: ${archive}"
-  docker save "${PANEL_IMAGE}" "${UI_IMAGE}" "${CORE_IMAGE}" | gzip -c >"${archive}"
+  "${DOCKER[@]}" save "${PANEL_IMAGE}" "${UI_IMAGE}" "${CORE_IMAGE}" | gzip -c >"${archive}"
   write_generated_configs "${OUTPUT_DIR}"
 
   cat >"${OUTPUT_DIR}/README.txt" <<EOF
@@ -374,6 +388,7 @@ main() {
   require_cmd docker
   require_cmd git
   require_cmd go
+  detect_docker
 
   [[ "${BUILD_PANEL}" == "1" ]] && build_panel
   [[ "${BUILD_UI}" == "1" ]] && build_ui
