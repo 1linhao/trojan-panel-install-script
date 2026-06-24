@@ -133,24 +133,33 @@ abs_path() {
 parse_platform() {
   case "${PLATFORM}" in
   linux/386)
-    GOOS_VALUE="linux"; GOARCH_VALUE="386"; GOARM_VALUE=""; TARGET_SUFFIX="linux-386" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="386"; GOARM_VALUE=""; TARGETVARIANT_VALUE=""; TARGET_SUFFIX="linux-386" ;;
   linux/amd64)
-    GOOS_VALUE="linux"; GOARCH_VALUE="amd64"; GOARM_VALUE=""; TARGET_SUFFIX="linux-amd64" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="amd64"; GOARM_VALUE=""; TARGETVARIANT_VALUE=""; TARGET_SUFFIX="linux-amd64" ;;
   linux/arm/v6)
-    GOOS_VALUE="linux"; GOARCH_VALUE="arm"; GOARM_VALUE="6"; TARGET_SUFFIX="linux-armv6" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="arm"; GOARM_VALUE="6"; TARGETVARIANT_VALUE="v6"; TARGET_SUFFIX="linux-armv6" ;;
   linux/arm/v7)
-    GOOS_VALUE="linux"; GOARCH_VALUE="arm"; GOARM_VALUE="7"; TARGET_SUFFIX="linux-armv7" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="arm"; GOARM_VALUE="7"; TARGETVARIANT_VALUE="v7"; TARGET_SUFFIX="linux-armv7" ;;
   linux/arm64)
-    GOOS_VALUE="linux"; GOARCH_VALUE="arm64"; GOARM_VALUE=""; TARGET_SUFFIX="linux-arm64" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="arm64"; GOARM_VALUE=""; TARGETVARIANT_VALUE=""; TARGET_SUFFIX="linux-arm64" ;;
   linux/ppc64le)
-    GOOS_VALUE="linux"; GOARCH_VALUE="ppc64le"; GOARM_VALUE=""; TARGET_SUFFIX="linux-ppc64le" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="ppc64le"; GOARM_VALUE=""; TARGETVARIANT_VALUE=""; TARGET_SUFFIX="linux-ppc64le" ;;
   linux/s390x)
-    GOOS_VALUE="linux"; GOARCH_VALUE="s390x"; GOARM_VALUE=""; TARGET_SUFFIX="linux-s390x" ;;
+    GOOS_VALUE="linux"; GOARCH_VALUE="s390x"; GOARM_VALUE=""; TARGETVARIANT_VALUE=""; TARGET_SUFFIX="linux-s390x" ;;
   *)
     echo "Unsupported platform: ${PLATFORM}" >&2
     exit 1
     ;;
   esac
+}
+
+docker_build_with_target_args() {
+  local image="$1"
+  docker build --platform "${PLATFORM}" \
+    --build-arg TARGETOS="${GOOS_VALUE}" \
+    --build-arg TARGETARCH="${GOARCH_VALUE}" \
+    --build-arg TARGETVARIANT="${TARGETVARIANT_VALUE}" \
+    -t "${image}" .
 }
 
 require_cmd() {
@@ -194,7 +203,7 @@ build_panel() {
     cd "${PANEL_DIR}"
     GOOS="${GOOS_VALUE}" GOARCH="${GOARCH_VALUE}" GOARM="${GOARM_VALUE}" \
       go build -o "build/trojan-panel-${TARGET_SUFFIX}" -trimpath -ldflags "-s -w -buildid=" .
-    docker build --platform "${PLATFORM}" -t "${PANEL_IMAGE}" .
+    docker_build_with_target_args "${PANEL_IMAGE}"
   )
 }
 
@@ -257,7 +266,7 @@ build_core() {
 
   (
     cd "${CORE_DIR}"
-    docker build --platform "${PLATFORM}" -t "${CORE_IMAGE}" .
+    docker_build_with_target_args "${CORE_IMAGE}"
   )
 }
 
