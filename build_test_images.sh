@@ -215,7 +215,7 @@ build_panel() {
   echo "---> Build backend binary: ${TARGET_SUFFIX}"
   (
     cd "${PANEL_DIR}"
-    GOOS="${GOOS_VALUE}" GOARCH="${GOARCH_VALUE}" GOARM="${GOARM_VALUE}" \
+    CGO_ENABLED=0 GOOS="${GOOS_VALUE}" GOARCH="${GOARCH_VALUE}" GOARM="${GOARM_VALUE}" \
       go build -o "build/trojan-panel-${TARGET_SUFFIX}" -trimpath -ldflags "-s -w -buildid=" .
     docker_build_with_target_args "${PANEL_IMAGE}"
   )
@@ -261,7 +261,7 @@ build_core() {
   echo "---> Build core binary: ${TARGET_SUFFIX}"
   (
     cd "${CORE_DIR}"
-    GOOS="${GOOS_VALUE}" GOARCH="${GOARCH_VALUE}" GOARM="${GOARM_VALUE}" \
+    CGO_ENABLED=0 GOOS="${GOOS_VALUE}" GOARCH="${GOARCH_VALUE}" GOARM="${GOARM_VALUE}" \
       go build -o "build/trojan-panel-core-${TARGET_SUFFIX}" -trimpath -ldflags "-s -w -buildid=" .
   )
 
@@ -273,6 +273,7 @@ build_core() {
     (
       cd "${CORE_DIR}"
       OUTPUT="${CORE_DIR}/build/naiveproxy-${TARGET_SUFFIX}" \
+        CGO_ENABLED=0 \
         GOOS="${GOOS_VALUE}" GOARCH="${GOARCH_VALUE}" GOARM="${GOARM_VALUE}" \
         bash scripts/build-naiveproxy-with-traffic.sh
     )

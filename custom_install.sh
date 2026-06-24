@@ -151,7 +151,7 @@ container_running() {
 remove_container_if_force() {
   local name="$1"
   if container_exists "${name}" && [[ "${TP_FORCE}" == "1" ]]; then
-    docker rm -f "${name}" >/dev/null 2>&1 || true
+    docker rm -fv "${name}" >/dev/null 2>&1 || true
   fi
 }
 
@@ -379,6 +379,32 @@ prepare_dirs() {
     "${TP_DATA}/trojan-panel-core/config" \
     "${TP_DATA}/custom/web-caddy" \
     "${TP_DATA}/custom/node-caddy"
+}
+
+write_panel_runtime_config() {
+  cat >"${TP_DATA}/trojan-panel/config/config.ini" <<EOF
+[mysql]
+host=127.0.0.1
+user=${MARIADB_USER}
+password=${MARIADB_PASSWORD}
+port=${MARIADB_PORT}
+[log]
+filename=logs/trojan-panel.log
+max_size=1
+max_backups=5
+max_age=30
+compress=true
+[redis]
+host=127.0.0.1
+port=${REDIS_PORT}
+password=${REDIS_PASSWORD}
+db=0
+max_idle=2
+max_active=4
+wait=true
+[server]
+port=${PANEL_PORT}
+EOF
 }
 
 prepare_static_web() {
@@ -849,6 +875,7 @@ deploy_web() {
   prepare_dirs
   deploy_mariadb
   deploy_redis
+  write_panel_runtime_config
   deploy_panel_backend
   deploy_panel_ui
   write_web_caddyfile "${TP_WEB_DOMAIN}"
@@ -876,6 +903,7 @@ deploy_web_source() {
   prepare_dirs
   deploy_mariadb
   deploy_redis
+  write_panel_runtime_config
   deploy_panel_backend_source
   deploy_panel_ui_source
   write_web_source_caddyfile "${TP_WEB_DOMAIN}"
