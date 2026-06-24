@@ -47,6 +47,50 @@ CPU: linux/amd64 / linux/arm/v6 / linux/arm/v7 / linux/arm64 / linux/s390x / lin
 
 - [安装旧版本](README_ARCHIVE_ZH.md)
 
+### 定制化分离部署
+
+此 fork 新增 `custom_install.sh`，用于非交互的一键分离部署。
+
+- web 端：部署 Caddy HTTPS、Trojan Panel 前端、后端、MariaDB、Redis，不部署 `trojan-panel-core`。
+- node 端：部署 Caddy 伪装站/证书和 `trojan-panel-core`，连接 web 端的 MariaDB/Redis。
+
+部署 web 端：
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
+chmod +x /tmp/tp-custom.sh && \
+bash /tmp/tp-custom.sh web ./env.yaml
+```
+
+部署 node 端：
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
+chmod +x /tmp/tp-custom.sh && \
+bash /tmp/tp-custom.sh node ./env.yaml
+```
+
+配置示例：
+
+```yaml
+trojan_panel:
+  mode: "deploy"
+  web_hostname: "panel.example.com"
+  web_mail: "admin@example.com"
+  node_hostname: "node.example.com"
+  node_mail: "admin@example.com"
+  mariadb_host: "panel.example.com"
+  mariadb_password: "your-mariadb-password"
+  redis_host: "panel.example.com"
+  redis_password: "your-redis-password"
+  node_caddy_http_port: "80"
+  node_caddy_https_port: "8863"
+  force: "0"
+  purge_data: "0"
+```
+
+设置 `force: "1"` 可重建已有容器。执行 `remove-web ./env.yaml` 或 `remove-node ./env.yaml` 时设置 `purge_data: "1"` 可同时删除生成的数据目录。
+
 ## 其他
 
 Telegram Channel: https://t.me/jonssonyan_channel
