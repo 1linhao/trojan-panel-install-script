@@ -62,38 +62,26 @@ Deploy web side:
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/web.env.yaml -o ./web.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
-bash /tmp/tp-custom.sh web ./env.yaml
+bash /tmp/tp-custom.sh web ./web.env.yaml
 ```
 
 Deploy node side:
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/node.env.yaml -o ./node.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
-bash /tmp/tp-custom.sh node ./env.yaml
+bash /tmp/tp-custom.sh node ./node.env.yaml
 ```
 
-Example config:
+Example configs:
 
-```yaml
-trojan_panel:
-  mode: "deploy"
-  web_hostname: "panel.example.com"
-  web_mail: "admin@example.com"
-  node_hostname: "node.example.com"
-  node_mail: "admin@example.com"
-  mariadb_host: "panel.example.com"
-  mariadb_password: "your-mariadb-password"
-  redis_host: "panel.example.com"
-  redis_password: "your-redis-password"
-  node_caddy_http_port: "80"
-  node_caddy_https_port: "8863"
-  force: "0"
-  purge_data: "0"
-```
+- [web.env.yaml](examples/web.env.yaml)
+- [node.env.yaml](examples/node.env.yaml)
 
-Set `force: "1"` to recreate existing containers. Set `purge_data: "1"` with `remove-web ./env.yaml` or `remove-node ./env.yaml` to remove generated data directories.
+Set `force: "1"` to recreate existing containers. Set `purge_data: "1"` with `remove-web ./web.env.yaml` or `remove-node ./node.env.yaml` to remove generated data directories.
 
 ## Other
 
