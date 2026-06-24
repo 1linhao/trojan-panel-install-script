@@ -409,6 +409,42 @@ port=${PANEL_PORT}
 EOF
 }
 
+write_core_runtime_config() {
+  local crt_path="$1"
+  local key_path="$2"
+
+  cat >"${TP_DATA}/trojan-panel-core/config/config.ini" <<EOF
+[mysql]
+host=${MARIADB_HOST}
+user=${MARIADB_USER}
+password=${MARIADB_PASSWORD}
+port=${MARIADB_PORT}
+database=${MARIADB_DATABASE}
+account_table=${ACCOUNT_TABLE}
+[redis]
+host=${REDIS_HOST}
+port=${REDIS_PORT}
+password=${REDIS_PASSWORD}
+db=0
+max_idle=2
+max_active=4
+wait=true
+[cert]
+crt_path=${crt_path}
+key_path=${key_path}
+[log]
+filename=logs/trojan-panel-core.log
+max_size=1
+max_backups=5
+max_age=30
+compress=true
+[grpc]
+port=${GRPC_PORT}
+[server]
+port=${CORE_PORT}
+EOF
+}
+
 prepare_static_web() {
   if [[ -f "${WEB_PATH}/index.html" ]]; then
     return
@@ -824,6 +860,7 @@ deploy_core() {
   local crt_path="${cert_data}/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${domain}/${domain}.crt"
   local key_path="${cert_data}/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${domain}/${domain}.key"
 
+  write_core_runtime_config "${crt_path}" "${key_path}"
   remove_container_if_force "${CORE_CONTAINER}"
   if container_running "${CORE_CONTAINER}"; then
     echo_content skyBlue "---> Trojan Panel Core already running"
