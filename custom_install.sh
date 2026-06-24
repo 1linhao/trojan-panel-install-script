@@ -17,6 +17,7 @@ UI_CONTAINER="${UI_CONTAINER:-trojan-panel-ui}"
 CORE_CONTAINER="${CORE_CONTAINER:-trojan-panel-core}"
 WEB_CADDY_CONTAINER="${WEB_CADDY_CONTAINER:-trojan-panel-web-caddy}"
 NODE_CADDY_CONTAINER="${NODE_CADDY_CONTAINER:-trojan-panel-node-caddy}"
+LEGACY_NODE_CADDY_CONTAINER="${LEGACY_NODE_CADDY_CONTAINER:-trojan-panel-caddy}"
 
 CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.8.4}"
 MARIADB_IMAGE="${MARIADB_IMAGE:-mariadb:10.7.3}"
@@ -266,6 +267,7 @@ load_config() {
   cfg_apply "${file}" UI_IMAGE ui_image
   cfg_apply "${file}" CORE_IMAGE core_image
   cfg_apply "${file}" IMAGE_BUNDLE_DIR image_bundle_dir
+  cfg_apply "${file}" LEGACY_NODE_CADDY_CONTAINER legacy_node_caddy_container
 
   cfg_apply "${file}" MARIADB_PORT mariadb_port
   cfg_apply "${file}" MARIADB_USER mariadb_user
@@ -934,6 +936,9 @@ deploy_node() {
   prepare_dirs
   prepare_static_web
   write_node_caddyfile "${TP_NODE_DOMAIN}"
+  if [[ "${TP_FORCE}" == "1" && "${LEGACY_NODE_CADDY_CONTAINER}" != "${NODE_CADDY_CONTAINER}" ]]; then
+    remove_container_if_force "${LEGACY_NODE_CADDY_CONTAINER}"
+  fi
   start_caddy "${NODE_CADDY_CONTAINER}" "${TP_DATA}/custom/node-caddy" "${TP_DATA}/custom/node-caddy/data" "${WEB_PATH}"
   wait_for_cert "${TP_NODE_DOMAIN}" "${TP_DATA}/custom/node-caddy/data"
   deploy_core "${TP_NODE_DOMAIN}"
@@ -958,7 +963,7 @@ remove_web() {
 }
 
 remove_node() {
-  docker rm -f "${CORE_CONTAINER}" "${NODE_CADDY_CONTAINER}" >/dev/null 2>&1 || true
+  docker rm -f "${CORE_CONTAINER}" "${NODE_CADDY_CONTAINER}" "${LEGACY_NODE_CADDY_CONTAINER}" >/dev/null 2>&1 || true
   if [[ "${TP_PURGE_DATA}" == "1" ]]; then
     rm -rf "${TP_DATA}/custom/node-caddy" "${TP_DATA}/trojan-panel-core"
   fi
