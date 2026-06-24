@@ -56,13 +56,14 @@ Memory: ≥ 1G
 This fork includes `custom_install.sh` for non-interactive split deployment.
 
 - Web side: deploys Caddy HTTPS, Trojan Panel UI, backend, MariaDB, and Redis. It does not deploy `trojan-panel-core`.
+- Source web side: deploys MariaDB/Redis/Caddy containers, builds backend and frontend directly from GitHub source, and runs backend with systemd.
 - Node side: deploys Caddy camouflage/certificate and `trojan-panel-core`, connected to the web side MariaDB/Redis.
 
 Deploy web side:
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/web.env.yaml -o ./web.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/web.env.yaml -o ./web.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web ./web.env.yaml
 ```
@@ -70,15 +71,25 @@ bash /tmp/tp-custom.sh web ./web.env.yaml
 Deploy node side:
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/node.env.yaml -o ./node.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/node.env.yaml -o ./node.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node ./node.env.yaml
+```
+
+Deploy source web side for testing:
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/web-source.env.yaml -o ./web-source.env.yaml && \
+chmod +x /tmp/tp-custom.sh && \
+bash /tmp/tp-custom.sh web-source ./web-source.env.yaml
 ```
 
 Example configs:
 
 - [web.env.yaml](examples/web.env.yaml)
+- [web-source.env.yaml](examples/web-source.env.yaml)
 - [node.env.yaml](examples/node.env.yaml)
 
 Set `force: "1"` to recreate existing containers. Set `purge_data: "1"` with `remove-web ./web.env.yaml` or `remove-node ./node.env.yaml` to remove generated data directories.

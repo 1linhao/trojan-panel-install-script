@@ -52,13 +52,14 @@ CPU: linux/amd64 / linux/arm/v6 / linux/arm/v7 / linux/arm64 / linux/s390x / lin
 此 fork 新增 `custom_install.sh`，用于非交互的一键分离部署。
 
 - web 端：部署 Caddy HTTPS、Trojan Panel 前端、后端、MariaDB、Redis，不部署 `trojan-panel-core`。
+- 源码 web 端：MariaDB/Redis/Caddy 仍用容器，后端和前端直接从 GitHub 源码构建，后端用 systemd 运行。
 - node 端：部署 Caddy 伪装站/证书和 `trojan-panel-core`，连接 web 端的 MariaDB/Redis。
 
 部署 web 端：
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/web.env.yaml -o ./web.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/web.env.yaml -o ./web.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web ./web.env.yaml
 ```
@@ -66,15 +67,25 @@ bash /tmp/tp-custom.sh web ./web.env.yaml
 部署 node 端：
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/node.env.yaml -o ./node.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/node.env.yaml -o ./node.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node ./node.env.yaml
+```
+
+部署源码 web 端用于测试：
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/web-source.env.yaml -o ./web-source.env.yaml && \
+chmod +x /tmp/tp-custom.sh && \
+bash /tmp/tp-custom.sh web-source ./web-source.env.yaml
 ```
 
 配置示例：
 
 - [web.env.yaml](examples/web.env.yaml)
+- [web-source.env.yaml](examples/web-source.env.yaml)
 - [node.env.yaml](examples/node.env.yaml)
 
 设置 `force: "1"` 可重建已有容器。执行 `remove-web ./web.env.yaml` 或 `remove-node ./node.env.yaml` 时设置 `purge_data: "1"` 可同时删除生成的数据目录。

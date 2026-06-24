@@ -37,6 +37,15 @@ GRPC_PORT="${GRPC_PORT:-8100}"
 NODE_CADDY_HTTP_PORT="${NODE_CADDY_HTTP_PORT:-80}"
 NODE_CADDY_HTTPS_PORT="${NODE_CADDY_HTTPS_PORT:-8863}"
 
+SOURCE_BASE="${SOURCE_BASE:-${TP_DATA}/source}"
+PANEL_REPO="${PANEL_REPO:-https://github.com/1linhao/trojan-panel.git}"
+PANEL_BRANCH="${PANEL_BRANCH:-feature/sing-box-subscribe}"
+UI_REPO="${UI_REPO:-https://github.com/1linhao/trojan-panel-ui.git}"
+UI_BRANCH="${UI_BRANCH:-feature/sing-box-subscribe}"
+GO_VERSION="${GO_VERSION:-1.22.5}"
+PANEL_SERVICE="${PANEL_SERVICE:-trojan-panel-source}"
+UI_DIST="${UI_DIST:-${TP_DATA}/trojan-panel-ui/dist}"
+
 TP_FORCE="${TP_FORCE:-0}"
 TP_PURGE_DATA="${TP_PURGE_DATA:-0}"
 
@@ -54,11 +63,12 @@ usage() {
   cat <<EOF
 Usage:
   $0 web
+  $0 web-source
   $0 node
   $0 remove-web
   $0 remove-node
 
-Required for web:
+Required for web and web-source:
   env.yaml keys:
     trojan_panel.web_hostname
 
@@ -69,6 +79,15 @@ Optional for web:
     trojan_panel.redis_password
     trojan_panel.panel_image
     trojan_panel.ui_image
+
+Optional for web-source:
+  env.yaml keys:
+    trojan_panel.panel_repo
+    trojan_panel.panel_branch
+    trojan_panel.ui_repo
+    trojan_panel.ui_branch
+    trojan_panel.go_version
+    trojan_panel.source_base
 
 Required for node:
   env.yaml keys:
@@ -90,6 +109,7 @@ Optional for node:
 
 Examples:
   $0 web ./env.yaml
+  $0 web-source ./env.yaml
   $0 node ./env.yaml
   $0 remove-web ./env.yaml
   $0 remove-node ./env.yaml
@@ -256,9 +276,17 @@ load_config() {
   cfg_apply "${file}" NODE_CADDY_HTTPS_PORT node_caddy_https_port caddy_remote_port
   cfg_apply "${file}" TP_FORCE force
   cfg_apply "${file}" TP_PURGE_DATA purge_data
+  cfg_apply "${file}" SOURCE_BASE source_base
+  cfg_apply "${file}" PANEL_REPO panel_repo
+  cfg_apply "${file}" PANEL_BRANCH panel_branch
+  cfg_apply "${file}" UI_REPO ui_repo
+  cfg_apply "${file}" UI_BRANCH ui_branch
+  cfg_apply "${file}" GO_VERSION go_version
+  cfg_apply "${file}" PANEL_SERVICE panel_service
+  cfg_apply "${file}" UI_DIST ui_dist
 
   case "${action}" in
-  web | deploy-web)
+  web | deploy-web | web-source | deploy-web-source)
     cfg_apply "${file}" TP_WEB_DOMAIN web_hostname web_domain hostname domain
     cfg_apply "${file}" TP_EMAIL web_mail web_email email mail
     cfg_apply "${file}" MARIADB_PASSWORD mariadb_password
@@ -329,8 +357,6 @@ write_web_caddyfile() {
     cat >"${caddyfile}" <<EOF
 {
     email ${TP_EMAIL}
-    http_port ${NODE_CADDY_HTTP_PORT}
-    https_port ${NODE_CADDY_HTTPS_PORT}
 }
 
 ${domain} {
@@ -346,6 +372,46 @@ EOF
   fi
 }
 
+write_web_source_caddyfile() {
+  local domain="$1"
+  local caddyfile="${TP_DATA}/custom/web-caddy/Caddyfile"
+  if [[ -n "${TP_EMAIL:-}" ]]; then
+    cat >"${caddyfile}" <<EOF
+{
+    email ${TP_EMAIL}
+}
+
+${domain} {
+    handle /api/* {
+        reverse_proxy 127.0.0.1:${PANEL_PORT}
+    }
+
+    handle {
+        root * /srv
+        encode gzip
+        try_files {path} /index.html
+        file_server
+    }
+}
+EOF
+  else
+    cat >"${caddyfile}" <<EOF
+${domain} {
+    handle /api/* {
+        reverse_proxy 127.0.0.1:${PANEL_PORT}
+    }
+
+    handle {
+        root * /srv
+        encode gzip
+        try_files {path} /index.html
+        file_server
+    }
+}
+EOF
+  fi
+}
+
 write_node_caddyfile() {
   local domain="$1"
   local caddyfile="${TP_DATA}/custom/node-caddy/Caddyfile"
@@ -353,6 +419,8 @@ write_node_caddyfile() {
     cat >"${caddyfile}" <<EOF
 {
     email ${TP_EMAIL}
+    http_port ${NODE_CADDY_HTTP_PORT}
+    https_port ${NODE_CADDY_HTTPS_PORT}
 }
 
 ${domain} {
@@ -562,6 +630,126 @@ deploy_panel_ui() {
   wait_for_container "${UI_CONTAINER}"
 }
 
+install_source_tools() {
+  install_base_tools
+  command -v git >/dev/null 2>&1 || install_packages git
+  install_go
+  install_node
+}
+
+install_go() {
+  if command -v go >/dev/null 2>&1; then
+    return
+  fi
+
+  local arch
+  case "$(uname -m)" in
+  x86_64 | amd64)
+    arch="amd64"
+    ;;
+  aarch64 | arm64)
+    arch="arm64"
+    ;;
+  armv6l)
+    arch="armv6l"
+    ;;
+  armv7l | armv7)
+    arch="armv6l"
+    ;;
+  *)
+    echo_content red "Unsupported architecture for Go: $(uname -m)"
+    exit 1
+    ;;
+  esac
+
+  echo_content green "---> Install Go ${GO_VERSION}"
+  curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${arch}.tar.gz" -o /tmp/go.tar.gz
+  rm -rf /usr/local/go
+  tar -C /usr/local -xzf /tmp/go.tar.gz
+  export PATH="/usr/local/go/bin:${PATH}"
+  ln -sf /usr/local/go/bin/go /usr/local/bin/go
+}
+
+install_node() {
+  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    :
+  else
+    install_packages nodejs npm
+  fi
+  if ! command -v yarn >/dev/null 2>&1; then
+    npm install -g yarn
+  fi
+}
+
+sync_repo() {
+  local repo="$1"
+  local branch="$2"
+  local path="$3"
+
+  if [[ -d "${path}/.git" ]]; then
+    git -C "${path}" fetch origin "${branch}"
+    git -C "${path}" checkout "${branch}"
+    git -C "${path}" pull --ff-only origin "${branch}"
+  else
+    rm -rf "${path}"
+    git clone --branch "${branch}" "${repo}" "${path}"
+  fi
+}
+
+deploy_panel_backend_source() {
+  local src="${SOURCE_BASE}/trojan-panel"
+  local dst="${TP_DATA}/trojan-panel"
+
+  systemctl stop "${PANEL_SERVICE}" >/dev/null 2>&1 || true
+  mkdir -p "${SOURCE_BASE}" "${dst}/logs" "${dst}/config" "${dst}/webfile"
+  sync_repo "${PANEL_REPO}" "${PANEL_BRANCH}" "${src}"
+
+  echo_content green "---> Build Trojan Panel backend from source"
+  (cd "${src}" && go build -o "${dst}/trojan-panel" .)
+
+  cat >"/etc/systemd/system/${PANEL_SERVICE}.service" <<EOF
+[Unit]
+Description=Trojan Panel source backend
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${dst}
+Environment=GIN_MODE=release
+ExecStart=${dst}/trojan-panel -host=127.0.0.1 -port=${MARIADB_PORT} -user=${MARIADB_USER} -password=${MARIADB_PASSWORD} -redisHost=127.0.0.1 -redisPort=${REDIS_PORT} -redisPassword=${REDIS_PASSWORD} -serverPort=${PANEL_PORT}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now "${PANEL_SERVICE}"
+  for _ in $(seq 1 30); do
+    if systemctl is-active --quiet "${PANEL_SERVICE}"; then
+      return
+    fi
+    sleep 1
+  done
+  journalctl -u "${PANEL_SERVICE}" -n 80 --no-pager || true
+  echo_content red "---> Trojan Panel source backend failed to start"
+  exit 1
+}
+
+deploy_panel_ui_source() {
+  local src="${SOURCE_BASE}/trojan-panel-ui"
+  mkdir -p "${SOURCE_BASE}" "${UI_DIST}"
+  sync_repo "${UI_REPO}" "${UI_BRANCH}" "${src}"
+
+  echo_content green "---> Build Trojan Panel UI from source"
+  (cd "${src}" && yarn install && yarn build)
+  rm -rf "${UI_DIST}"
+  mkdir -p "${UI_DIST}"
+  cp -a "${src}/dist/." "${UI_DIST}/"
+}
+
 deploy_core() {
   local domain="$1"
   local cert_data="${TP_DATA}/custom/node-caddy/data"
@@ -635,6 +823,34 @@ deploy_web() {
   echo_content red "==============================================================\n"
 }
 
+deploy_web_source() {
+  require_value TP_WEB_DOMAIN
+  MARIADB_PASSWORD="${MARIADB_PASSWORD:-$(random_password)}"
+  REDIS_PASSWORD="${REDIS_PASSWORD:-$(random_password)}"
+  export MARIADB_PASSWORD REDIS_PASSWORD
+
+  install_source_tools
+  install_docker
+  prepare_dirs
+  deploy_mariadb
+  deploy_redis
+  deploy_panel_backend_source
+  deploy_panel_ui_source
+  write_web_source_caddyfile "${TP_WEB_DOMAIN}"
+  start_caddy "${WEB_CADDY_CONTAINER}" "${TP_DATA}/custom/web-caddy" "${TP_DATA}/custom/web-caddy/data" "${UI_DIST}"
+
+  echo_content red "\n=============================================================="
+  echo_content skyBlue "Trojan Panel source web side deployed"
+  echo_content yellow "URL: https://${TP_WEB_DOMAIN}"
+  echo_content yellow "Backend repo: ${PANEL_REPO} (${PANEL_BRANCH})"
+  echo_content yellow "UI repo: ${UI_REPO} (${UI_BRANCH})"
+  echo_content yellow "Default username: sysadmin"
+  echo_content yellow "Default password: 123456"
+  echo_content yellow "MariaDB root password: ${MARIADB_PASSWORD}"
+  echo_content yellow "Redis password: ${REDIS_PASSWORD}"
+  echo_content red "==============================================================\n"
+}
+
 deploy_node() {
   require_value TP_NODE_DOMAIN
   require_value MARIADB_HOST
@@ -661,8 +877,11 @@ deploy_node() {
 
 remove_web() {
   docker rm -f "${WEB_CADDY_CONTAINER}" "${UI_CONTAINER}" "${PANEL_CONTAINER}" "${REDIS_CONTAINER}" "${MARIADB_CONTAINER}" >/dev/null 2>&1 || true
+  systemctl disable --now "${PANEL_SERVICE}" >/dev/null 2>&1 || true
+  rm -f "/etc/systemd/system/${PANEL_SERVICE}.service"
+  systemctl daemon-reload >/dev/null 2>&1 || true
   if [[ "${TP_PURGE_DATA}" == "1" ]]; then
-    rm -rf "${TP_DATA}/custom/web-caddy" "${TP_DATA}/trojan-panel" "${TP_DATA}/trojan-panel-ui" "${TP_DATA}/mariadb" "${TP_DATA}/redis"
+    rm -rf "${TP_DATA}/custom/web-caddy" "${TP_DATA}/trojan-panel" "${TP_DATA}/trojan-panel-ui" "${TP_DATA}/mariadb" "${TP_DATA}/redis" "${SOURCE_BASE}"
   fi
   echo_content skyBlue "---> Trojan Panel web side removed"
 }
@@ -685,6 +904,11 @@ main() {
     require_root
     load_config "${action}" "${2:-}"
     deploy_web
+    ;;
+  web-source | deploy-web-source)
+    require_root
+    load_config "${action}" "${2:-}"
+    deploy_web_source
     ;;
   node | deploy-node)
     require_root
