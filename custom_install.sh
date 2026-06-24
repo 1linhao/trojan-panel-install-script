@@ -24,6 +24,7 @@ REDIS_IMAGE="${REDIS_IMAGE:-redis:6.2.7}"
 PANEL_IMAGE="${PANEL_IMAGE:-jonssonyan/trojan-panel}"
 UI_IMAGE="${UI_IMAGE:-jonssonyan/trojan-panel-ui}"
 CORE_IMAGE="${CORE_IMAGE:-jonssonyan/trojan-panel-core}"
+IMAGE_BUNDLE_DIR="${IMAGE_BUNDLE_DIR:-}"
 
 MARIADB_PORT="${MARIADB_PORT:-9507}"
 MARIADB_USER="${MARIADB_USER:-root}"
@@ -79,6 +80,7 @@ Optional for web:
     trojan_panel.redis_password
     trojan_panel.panel_image
     trojan_panel.ui_image
+    trojan_panel.image_bundle_dir
 
 Optional for web-source:
   env.yaml keys:
@@ -101,6 +103,7 @@ Optional for node:
   env.yaml keys:
     trojan_panel.node_mail
     trojan_panel.core_image
+    trojan_panel.image_bundle_dir
     trojan_panel.mariadb_user
     trojan_panel.mariadb_port
     trojan_panel.redis_port
@@ -262,6 +265,7 @@ load_config() {
   cfg_apply "${file}" PANEL_IMAGE panel_image
   cfg_apply "${file}" UI_IMAGE ui_image
   cfg_apply "${file}" CORE_IMAGE core_image
+  cfg_apply "${file}" IMAGE_BUNDLE_DIR image_bundle_dir
 
   cfg_apply "${file}" MARIADB_PORT mariadb_port
   cfg_apply "${file}" MARIADB_USER mariadb_user
@@ -319,6 +323,42 @@ install_docker() {
   if command -v systemctl >/dev/null 2>&1; then
     systemctl enable docker >/dev/null 2>&1 || true
     systemctl restart docker >/dev/null 2>&1 || true
+  fi
+}
+
+image_exists() {
+  docker image inspect "$1" >/dev/null 2>&1
+}
+
+ensure_image() {
+  local image="$1"
+  if image_exists "${image}"; then
+    echo_content skyBlue "---> Image already available: ${image}"
+    return
+  fi
+  docker pull "${image}"
+}
+
+load_image_archives() {
+  if [[ -z "${IMAGE_BUNDLE_DIR:-}" ]]; then
+    return
+  fi
+  if [[ ! -d "${IMAGE_BUNDLE_DIR}" ]]; then
+    echo_content red "Image bundle directory not found: ${IMAGE_BUNDLE_DIR}"
+    exit 1
+  fi
+
+  local archive found=0
+  shopt -s nullglob
+  for archive in "${IMAGE_BUNDLE_DIR}"/*.tar "${IMAGE_BUNDLE_DIR}"/*.tar.gz "${IMAGE_BUNDLE_DIR}"/*.tgz; do
+    found=1
+    echo_content green "---> Load Docker image archive: ${archive}"
+    docker load -i "${archive}"
+  done
+  shopt -u nullglob
+
+  if [[ "${found}" == "0" ]]; then
+    echo_content yellow "---> No Docker image archives found in ${IMAGE_BUNDLE_DIR}"
   fi
 }
 
@@ -459,7 +499,7 @@ start_caddy() {
     return
   fi
 
-  docker pull "${CADDY_IMAGE}"
+  ensure_image "${CADDY_IMAGE}"
   docker run -d --name "${name}" --restart always \
     --network=host \
     -v "${config_dir}/Caddyfile:/etc/caddy/Caddyfile" \
@@ -547,7 +587,7 @@ deploy_mariadb() {
     return
   fi
 
-  docker pull "${MARIADB_IMAGE}"
+  ensure_image "${MARIADB_IMAGE}"
   docker run -d --name "${MARIADB_CONTAINER}" --restart always \
     --network=host \
     -e MYSQL_DATABASE="${MARIADB_DATABASE}" \
@@ -572,7 +612,7 @@ deploy_redis() {
     return
   fi
 
-  docker pull "${REDIS_IMAGE}"
+  ensure_image "${REDIS_IMAGE}"
   docker run -d --name "${REDIS_CONTAINER}" --restart always \
     --network=host \
     "${REDIS_IMAGE}" redis-server --requirepass "${REDIS_PASSWORD}" --port "${REDIS_PORT}"
@@ -590,7 +630,7 @@ deploy_panel_backend() {
     return
   fi
 
-  docker pull "${PANEL_IMAGE}"
+  ensure_image "${PANEL_IMAGE}"
   docker run -d --name "${PANEL_CONTAINER}" --restart always \
     --network=host \
     -v "${WEB_PATH}:${TP_DATA}/trojan-panel/webfile/" \
@@ -622,7 +662,7 @@ deploy_panel_ui() {
     return
   fi
 
-  docker pull "${UI_IMAGE}"
+  ensure_image "${UI_IMAGE}"
   docker run -d --name "${UI_CONTAINER}" --restart always \
     --network=host \
     -v "${TP_DATA}/trojan-panel-ui/nginx/default.conf:/etc/nginx/conf.d/default.conf" \
@@ -766,7 +806,7 @@ deploy_core() {
     return
   fi
 
-  docker pull "${CORE_IMAGE}"
+  ensure_image "${CORE_IMAGE}"
   docker run -d --name "${CORE_CONTAINER}" --restart always \
     --network=host \
     -v "${TP_DATA}/trojan-panel-core/bin/xray/config/:${TP_DATA}/trojan-panel-core/bin/xray/config/" \
@@ -805,6 +845,7 @@ deploy_web() {
 
   install_base_tools
   install_docker
+  load_image_archives
   prepare_dirs
   deploy_mariadb
   deploy_redis
@@ -831,6 +872,7 @@ deploy_web_source() {
 
   install_source_tools
   install_docker
+  load_image_archives
   prepare_dirs
   deploy_mariadb
   deploy_redis
@@ -860,6 +902,7 @@ deploy_node() {
 
   install_base_tools
   install_docker
+  load_image_archives
   prepare_dirs
   prepare_static_web
   write_node_caddyfile "${TP_NODE_DOMAIN}"

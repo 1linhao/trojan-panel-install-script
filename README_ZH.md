@@ -52,8 +52,8 @@ CPU: linux/amd64 / linux/arm/v6 / linux/arm/v7 / linux/arm64 / linux/s390x / lin
 此 fork 新增 `custom_install.sh`，用于非交互的一键分离部署。
 
 - web 端：部署 Caddy HTTPS、Trojan Panel 前端、后端、MariaDB、Redis，不部署 `trojan-panel-core`。
-- 源码 web 端：MariaDB/Redis/Caddy 仍用容器，后端和前端直接从 GitHub 源码构建，后端用 systemd 运行。
 - node 端：部署 Caddy 伪装站/证书和 `trojan-panel-core`，连接 web 端的 MariaDB/Redis。
+- 本地镜像测试模式：在本机编译并打包定制镜像，手动传到 VPS 后再用 `custom_install.sh` 一键运行。
 
 部署 web 端：
 
@@ -73,20 +73,36 @@ chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node ./node.env.yaml
 ```
 
-部署源码 web 端用于测试：
+本机构建测试镜像：
+
+```shell
+bash ./build_test_images.sh ./examples/build-images.env.yaml
+scp -r ./dist/test-images root@your-vps:/root/trojan-panel-test-images
+```
+
+使用已传输的本地镜像部署 web 端：
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/web-source.env.yaml -o ./web-source.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
-bash /tmp/tp-custom.sh web-source ./web-source.env.yaml
+bash /tmp/tp-custom.sh web /root/trojan-panel-test-images/web-local-image.env.yaml
+```
+
+使用已传输的本地镜像部署 node 端：
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+chmod +x /tmp/tp-custom.sh && \
+bash /tmp/tp-custom.sh node /root/trojan-panel-test-images/node-local-image.env.yaml
 ```
 
 配置示例：
 
 - [web.env.yaml](examples/web.env.yaml)
-- [web-source.env.yaml](examples/web-source.env.yaml)
 - [node.env.yaml](examples/node.env.yaml)
+- [build-images.env.yaml](examples/build-images.env.yaml)
+- [web-local-image.env.yaml](examples/web-local-image.env.yaml)
+- [node-local-image.env.yaml](examples/node-local-image.env.yaml)
 
 设置 `force: "1"` 可重建已有容器。执行 `remove-web ./web.env.yaml` 或 `remove-node ./node.env.yaml` 时设置 `purge_data: "1"` 可同时删除生成的数据目录。
 
