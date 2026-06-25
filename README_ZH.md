@@ -53,14 +53,14 @@ CPU: linux/amd64 / linux/arm/v6 / linux/arm/v7 / linux/arm64 / linux/s390x / lin
 
 - web 端：部署 Caddy HTTPS、Trojan Panel 前端、后端、MariaDB、Redis，不部署 `trojan-panel-core`。
 - node 端：部署 Caddy 伪装站/证书和 `trojan-panel-core`，连接 web 端的 MariaDB/Redis。
-- GHCR 测试镜像：默认使用 `ghcr.io/1linhao/trojan-panel:test`、`ghcr.io/1linhao/trojan-panel-ui:test`、`ghcr.io/1linhao/trojan-panel-core:test`。首次由 GitHub Actions 推送后，需要在 GitHub Packages 页面把对应 package 设置为 Public，VPS 即可匿名拉取。
+- GHCR 测试镜像：默认使用 `ghcr.io/1linhao/trojan-panel:singbox`、`ghcr.io/1linhao/trojan-panel-ui:singbox`、`ghcr.io/1linhao/trojan-panel-core:singbox`。首次由 GitHub Actions 推送后，需要在 GitHub Packages 页面把对应 package 设置为 Public，VPS 即可匿名拉取。
 - 本地镜像测试模式：在本机编译并打包定制镜像，手动传到 VPS 后再用 `custom_install.sh` 一键运行。
 
 部署 web 端：
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/examples/web.env.yaml -o ./web.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/web.env.yaml -o ./web.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web ./web.env.yaml
 ```
@@ -68,8 +68,8 @@ bash /tmp/tp-custom.sh web ./web.env.yaml
 部署 node 端：
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/examples/node.env.yaml -o ./node.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/node.env.yaml -o ./node.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node ./node.env.yaml
 ```
@@ -84,7 +84,7 @@ scp -r ./dist/test-images root@your-vps:/root/trojan-panel-test-images
 使用已传输的本地镜像部署 web 端：
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web /root/trojan-panel-test-images/web-local-image.env.yaml
 ```
@@ -92,7 +92,7 @@ bash /tmp/tp-custom.sh web /root/trojan-panel-test-images/web-local-image.env.ya
 使用已传输的本地镜像部署 node 端：
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node /root/trojan-panel-test-images/node-local-image.env.yaml
 ```

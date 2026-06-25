@@ -6,7 +6,7 @@ YQ_BIN="${YQ_BIN:-${ROOT_DIR}/.cache/bin/yq}"
 
 OUTPUT_DIR="${OUTPUT_DIR:-${ROOT_DIR}/dist/test-images}"
 PLATFORM="${PLATFORM:-linux/amd64}"
-IMAGE_TAG="${IMAGE_TAG:-test}"
+IMAGE_TAG="${IMAGE_TAG:-singbox}"
 PANEL_DIR="${PANEL_DIR:-${ROOT_DIR}/../trojan-panel}"
 UI_DIR="${UI_DIR:-${ROOT_DIR}/../trojan-panel-ui}"
 CORE_DIR="${CORE_DIR:-${ROOT_DIR}/../trojan-panel-core}"
