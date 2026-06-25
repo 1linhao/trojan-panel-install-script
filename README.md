@@ -57,13 +57,14 @@ This fork includes `custom_install.sh` for non-interactive split deployment.
 
 - Web side: deploys Caddy HTTPS, Trojan Panel UI, backend, MariaDB, and Redis. It does not deploy `trojan-panel-core`.
 - Node side: deploys Caddy camouflage/certificate and `trojan-panel-core`, connected to the web side MariaDB/Redis.
+- GHCR test images: defaults use `ghcr.io/1linhao/trojan-panel:test`, `ghcr.io/1linhao/trojan-panel-ui:test`, and `ghcr.io/1linhao/trojan-panel-core:test`. After the first GitHub Actions push creates the packages, set each package visibility to Public in GitHub Packages so VPS hosts can pull them anonymously.
 - Local image test mode: build customized images on your local machine, transfer the saved image archive to the VPS, then deploy with `custom_install.sh`.
 
 Deploy web side:
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/web.env.yaml -o ./web.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/examples/web.env.yaml -o ./web.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web ./web.env.yaml
 ```
@@ -71,8 +72,8 @@ bash /tmp/tp-custom.sh web ./web.env.yaml
 Deploy node side:
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/examples/node.env.yaml -o ./node.env.yaml && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/examples/node.env.yaml -o ./node.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node ./node.env.yaml
 ```
@@ -87,7 +88,7 @@ scp -r ./dist/test-images root@your-vps:/root/trojan-panel-test-images
 Deploy web side with transferred local images:
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web /root/trojan-panel-test-images/web-local-image.env.yaml
 ```
@@ -95,7 +96,7 @@ bash /tmp/tp-custom.sh web /root/trojan-panel-test-images/web-local-image.env.ya
 Deploy node side with transferred local images:
 
 ```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/source-test-deploy/custom_install.sh -o /tmp/tp-custom.sh && \
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/test/custom_install.sh -o /tmp/tp-custom.sh && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node /root/trojan-panel-test-images/node-local-image.env.yaml
 ```
