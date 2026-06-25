@@ -334,7 +334,7 @@ image_exists() {
 
 ensure_image() {
   local image="$1"
-  if image_exists "${image}"; then
+  if image_exists "${image}" && [[ "${TP_FORCE}" != "1" ]]; then
     echo_content skyBlue "---> Image already available: ${image}"
     return
   fi
