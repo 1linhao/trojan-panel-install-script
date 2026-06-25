@@ -599,12 +599,14 @@ start_caddy() {
 wait_for_cert() {
   local domain="$1"
   local data_dir="$2"
-  local cert_file="${data_dir}/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${domain}/${domain}.crt"
-  local key_file="${data_dir}/caddy/certificates/acme-v02.api.letsencrypt.org-directory/${domain}/${domain}.key"
+  local cert_file
+  local key_file
 
   echo_content green "---> Wait for certificate: ${domain}"
   for _ in $(seq 1 60); do
-    if [[ -s "${cert_file}" && -s "${key_file}" ]]; then
+    cert_file="$(find "${data_dir}/caddy/certificates" -path "*/${domain}/${domain}.crt" -type f -size +0c 2>/dev/null | head -n 1 || true)"
+    key_file="$(find "${data_dir}/caddy/certificates" -path "*/${domain}/${domain}.key" -type f -size +0c 2>/dev/null | head -n 1 || true)"
+    if [[ -n "${cert_file}" && -n "${key_file}" ]]; then
       echo_content skyBlue "---> Certificate ready: ${cert_file}"
       return
     fi
