@@ -57,59 +57,35 @@ This fork includes `custom_install.sh` for non-interactive split deployment.
 
 - Web side: deploys Caddy HTTPS, Trojan Panel UI, backend, MariaDB, and Redis. It does not deploy `trojan-panel-core`.
 - Node side: deploys Caddy camouflage/certificate and `trojan-panel-core`, connected to the web side MariaDB/Redis.
-- GHCR test images: defaults use `ghcr.io/1linhao/trojan-panel:singbox`, `ghcr.io/1linhao/trojan-panel-ui:singbox`, and `ghcr.io/1linhao/trojan-panel-core:singbox`. After the first GitHub Actions push creates the packages, set each package visibility to Public in GitHub Packages so VPS hosts can pull them anonymously.
-- Local image test mode: build customized images on your local machine, transfer the saved image archive to the VPS, then deploy with `custom_install.sh`.
+- GHCR images: defaults use `ghcr.io/1linhao/trojan-panel:singbox`, `ghcr.io/1linhao/trojan-panel-ui:singbox`, and `ghcr.io/1linhao/trojan-panel-core:singbox`. Keep the GitHub Packages visibility Public so VPS hosts can pull them anonymously.
 
-Deploy web side:
+Download the web side config:
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/web.env.yaml -o ./web.env.yaml
+```
+
+Edit `./web.env.yaml`, then deploy the web side:
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/web.env.yaml -o ./web.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh web ./web.env.yaml
 ```
 
-Deploy node side:
+Download the node side config:
+
+```shell
+curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/node.env.yaml -o ./node.env.yaml
+```
+
+Edit `./node.env.yaml`, then deploy the node side:
 
 ```shell
 curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/examples/node.env.yaml -o ./node.env.yaml && \
 chmod +x /tmp/tp-custom.sh && \
 bash /tmp/tp-custom.sh node ./node.env.yaml
 ```
-
-Build local test images:
-
-```shell
-bash ./build_test_images.sh ./examples/build-images.env.yaml
-scp -r ./dist/test-images root@your-vps:/root/trojan-panel-test-images
-```
-
-Deploy web side with transferred local images:
-
-```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-chmod +x /tmp/tp-custom.sh && \
-bash /tmp/tp-custom.sh web /root/trojan-panel-test-images/web-local-image.env.yaml
-```
-
-Deploy node side with transferred local images:
-
-```shell
-curl -fsSL https://raw.githubusercontent.com/1linhao/trojan-panel-install-script/feature/sing-box-subscribe/custom_install.sh -o /tmp/tp-custom.sh && \
-chmod +x /tmp/tp-custom.sh && \
-bash /tmp/tp-custom.sh node /root/trojan-panel-test-images/node-local-image.env.yaml
-```
-
-Example configs:
-
-- [web.env.yaml](examples/web.env.yaml)
-- [node.env.yaml](examples/node.env.yaml)
-- [build-images.env.yaml](examples/build-images.env.yaml)
-- [web-local-image.env.yaml](examples/web-local-image.env.yaml)
-- [node-local-image.env.yaml](examples/node-local-image.env.yaml)
-
-Set `force: "1"` to recreate existing containers. Set `purge_data: "1"` with `remove-web ./web.env.yaml` or `remove-node ./node.env.yaml` to remove generated data directories.
 
 ## Other
 
