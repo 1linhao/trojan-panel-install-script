@@ -259,6 +259,7 @@ load_config() {
   fi
 
   install_yq
+  TP_CONFIG_FILE="${file}"
 
   cfg_apply "${file}" CADDY_IMAGE caddy_image
   cfg_apply "${file}" MARIADB_IMAGE mariadb_image
@@ -326,6 +327,38 @@ install_docker() {
     systemctl enable docker >/dev/null 2>&1 || true
     systemctl restart docker >/dev/null 2>&1 || true
   fi
+}
+
+container_env_value() {
+  local name="$1"
+  local key="$2"
+  if ! container_exists "${name}"; then
+    return
+  fi
+  docker inspect "${name}" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null |
+    awk -F= -v key="${key}" '$1 == key {sub(/^[^=]*=/, ""); print; exit}'
+}
+
+write_web_generated_secrets() {
+  local file="${TP_CONFIG_FILE:-}"
+  if [[ -z "${file}" || ! -f "${file}" ]]; then
+    return
+  fi
+  MARIADB_PASSWORD="${MARIADB_PASSWORD}" REDIS_PASSWORD="${REDIS_PASSWORD}" \
+    yq -i '.trojan_panel.mariadb_password = strenv(MARIADB_PASSWORD) | .trojan_panel.redis_password = strenv(REDIS_PASSWORD)' "${file}"
+}
+
+init_web_secrets() {
+  if [[ -z "${MARIADB_PASSWORD:-}" ]]; then
+    MARIADB_PASSWORD="$(container_env_value "${MARIADB_CONTAINER}" MYSQL_ROOT_PASSWORD || true)"
+  fi
+  if [[ -z "${REDIS_PASSWORD:-}" ]]; then
+    REDIS_PASSWORD="$(container_env_value "${PANEL_CONTAINER}" redis_pass || true)"
+  fi
+  MARIADB_PASSWORD="${MARIADB_PASSWORD:-$(random_password)}"
+  REDIS_PASSWORD="${REDIS_PASSWORD:-$(random_password)}"
+  export MARIADB_PASSWORD REDIS_PASSWORD
+  write_web_generated_secrets
 }
 
 image_exists() {
@@ -933,12 +966,10 @@ deploy_core() {
 
 deploy_web() {
   require_value TP_WEB_DOMAIN
-  MARIADB_PASSWORD="${MARIADB_PASSWORD:-$(random_password)}"
-  REDIS_PASSWORD="${REDIS_PASSWORD:-$(random_password)}"
-  export MARIADB_PASSWORD REDIS_PASSWORD
 
   install_base_tools
   install_docker
+  init_web_secrets
   load_image_archives
   prepare_dirs
   deploy_mariadb
@@ -961,12 +992,10 @@ deploy_web() {
 
 deploy_web_source() {
   require_value TP_WEB_DOMAIN
-  MARIADB_PASSWORD="${MARIADB_PASSWORD:-$(random_password)}"
-  REDIS_PASSWORD="${REDIS_PASSWORD:-$(random_password)}"
-  export MARIADB_PASSWORD REDIS_PASSWORD
 
   install_source_tools
   install_docker
+  init_web_secrets
   load_image_archives
   prepare_dirs
   deploy_mariadb
