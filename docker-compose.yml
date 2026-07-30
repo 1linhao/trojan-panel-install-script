@@ -68,12 +68,12 @@ services:
     network_mode: host
     volumes:
       - "/tpdata/trojan-panel-core/bin/xray/config/:/tpdata/trojan-panel-core/bin/xray/config/"
-      - "/tpdata/trojan-panel-core/bin/trojango/config/:/tpdata/trojan-panel-core/bin/trojango/config/"
-      - "/tpdata/trojan-panel-core/bin/hysteria/config/:/tpdata/trojan-panel-core/bin/hysteria/config/"
       - "/tpdata/trojan-panel-core/bin/naiveproxy/config/:/tpdata/trojan-panel-core/bin/naiveproxy/config/"
       - "/tpdata/trojan-panel-core/bin/hysteria2/config/:/tpdata/trojan-panel-core/bin/hysteria2/config/"
       - "/tpdata/trojan-panel-core/logs/:/tpdata/trojan-panel-core/logs/"
       - "/tpdata/trojan-panel-core/config/:/tpdata/trojan-panel-core/config/"
+      - "/tpdata/trojan-panel-core/pki/:/tpdata/trojan-panel-core/pki/:ro"
+      - "/tpdata/trojan-panel-core/runtime/:/tpdata/trojan-panel-core/runtime/"
       - "/tpdata/cert/:/tpdata/cert/"
       - "/tpdata/web/:/tpdata/web/"
       - "/etc/localtime:/etc/localtime"
@@ -92,3 +92,6 @@ services:
       - "key_path=/tpdata/cert/${domain}.key"
       - "grpc_port=8100"
       - "server_port=8082"
+      - "grpc_tls_mode=${grpc_tls_mode:-legacy}"
+      - "grpc_client_ca_path=/tpdata/trojan-panel-core/pki/client-ca.crt"
+      - "TP_KERNEL_RUNTIME=/tpdata/trojan-panel-core/runtime"

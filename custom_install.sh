@@ -36,6 +36,13 @@ PANEL_PORT="${PANEL_PORT:-8081}"
 UI_PORT="${UI_PORT:-8888}"
 CORE_PORT="${CORE_PORT:-8082}"
 GRPC_PORT="${GRPC_PORT:-8100}"
+GRPC_TLS_MODE="${GRPC_TLS_MODE:-legacy}"
+GRPC_TLS_SERVER_NAME="${GRPC_TLS_SERVER_NAME:-}"
+GRPC_CLIENT_CA_PATH="${GRPC_CLIENT_CA_PATH:-${TP_DATA}/trojan-panel-core/pki/client-ca.crt}"
+GRPC_CLIENT_CERT_PATH="${GRPC_CLIENT_CERT_PATH:-${TP_DATA}/trojan-panel/pki/client.crt}"
+GRPC_CLIENT_KEY_PATH="${GRPC_CLIENT_KEY_PATH:-${TP_DATA}/trojan-panel/pki/client.key}"
+GRPC_SERVER_CA_PATH="${GRPC_SERVER_CA_PATH:-}"
+KERNEL_RUNTIME_PATH="${KERNEL_RUNTIME_PATH:-${TP_DATA}/trojan-panel-core/runtime}"
 NODE_CADDY_HTTP_PORT="${NODE_CADDY_HTTP_PORT:-80}"
 NODE_CADDY_HTTPS_PORT="${NODE_CADDY_HTTPS_PORT:-8863}"
 
@@ -279,6 +286,13 @@ load_config() {
   cfg_apply "${file}" UI_PORT ui_port
   cfg_apply "${file}" CORE_PORT core_port
   cfg_apply "${file}" GRPC_PORT grpc_port
+  cfg_apply "${file}" GRPC_TLS_MODE grpc_tls_mode
+  cfg_apply "${file}" GRPC_TLS_SERVER_NAME grpc_tls_server_name
+  cfg_apply "${file}" GRPC_CLIENT_CA_PATH grpc_client_ca_path
+  cfg_apply "${file}" GRPC_CLIENT_CERT_PATH grpc_client_cert_path
+  cfg_apply "${file}" GRPC_CLIENT_KEY_PATH grpc_client_key_path
+  cfg_apply "${file}" GRPC_SERVER_CA_PATH grpc_server_ca_path
+  cfg_apply "${file}" KERNEL_RUNTIME_PATH kernel_runtime_path
   cfg_apply "${file}" NODE_CADDY_HTTP_PORT node_caddy_http_port caddy_port
   cfg_apply "${file}" NODE_CADDY_HTTPS_PORT node_caddy_https_port caddy_remote_port
   cfg_apply "${file}" TP_FORCE force
@@ -406,16 +420,33 @@ prepare_dirs() {
     "${TP_DATA}/trojan-panel/webfile" \
     "${TP_DATA}/trojan-panel/logs" \
     "${TP_DATA}/trojan-panel/config" \
+    "${TP_DATA}/trojan-panel/pki" \
     "${TP_DATA}/trojan-panel-ui/nginx" \
     "${TP_DATA}/trojan-panel-core/bin/xray/config" \
-    "${TP_DATA}/trojan-panel-core/bin/trojango/config" \
-    "${TP_DATA}/trojan-panel-core/bin/hysteria/config" \
     "${TP_DATA}/trojan-panel-core/bin/naiveproxy/config" \
     "${TP_DATA}/trojan-panel-core/bin/hysteria2/config" \
     "${TP_DATA}/trojan-panel-core/logs" \
     "${TP_DATA}/trojan-panel-core/config" \
+    "${TP_DATA}/trojan-panel-core/pki" \
+    "${KERNEL_RUNTIME_PATH}" \
     "${TP_DATA}/custom/web-caddy" \
     "${TP_DATA}/custom/node-caddy"
+}
+
+install_pki_material() {
+  local bundle="${TP_PKI_BUNDLE_DIR:-./trojan-panel-pki}"
+  if [[ -f "${bundle}/client-ca.crt" ]]; then
+    install -m 0644 "${bundle}/client-ca.crt" \
+      "${TP_DATA}/trojan-panel-core/pki/client-ca.crt"
+  fi
+  if [[ -f "${bundle}/client.crt" ]]; then
+    install -m 0644 "${bundle}/client.crt" \
+      "${TP_DATA}/trojan-panel/pki/client.crt"
+  fi
+  if [[ -f "${bundle}/client.key" ]]; then
+    install -m 0600 "${bundle}/client.key" \
+      "${TP_DATA}/trojan-panel/pki/client.key"
+  fi
 }
 
 persist_container_path() {
@@ -462,7 +493,12 @@ max_active=4
 wait=true
 [server]
 port=${PANEL_PORT}
+[grpc]
+client_cert_path=${GRPC_CLIENT_CERT_PATH}
+client_key_path=${GRPC_CLIENT_KEY_PATH}
+server_ca_path=${GRPC_SERVER_CA_PATH}
 EOF
+  chmod 600 "${TP_DATA}/trojan-panel/config/config.ini"
 }
 
 write_core_runtime_config() {
@@ -496,9 +532,12 @@ max_age=30
 compress=true
 [grpc]
 port=${GRPC_PORT}
+tls_mode=${GRPC_TLS_MODE}
+client_ca_path=${GRPC_CLIENT_CA_PATH}
 [server]
 port=${CORE_PORT}
 EOF
+  chmod 600 "${TP_DATA}/trojan-panel-core/config/config.ini"
 }
 
 prepare_static_web() {
@@ -762,6 +801,7 @@ deploy_panel_backend() {
     -v "${WEB_PATH}:${TP_DATA}/trojan-panel/webfile/" \
     -v "${TP_DATA}/trojan-panel/logs/:${TP_DATA}/trojan-panel/logs/" \
     -v "${TP_DATA}/trojan-panel/config/:${TP_DATA}/trojan-panel/config/" \
+    -v "${TP_DATA}/trojan-panel/pki/:${TP_DATA}/trojan-panel/pki/:ro" \
     -v /etc/localtime:/etc/localtime \
     -e GIN_MODE=release \
     -e "mariadb_ip=127.0.0.1" \
@@ -772,6 +812,9 @@ deploy_panel_backend() {
     -e "redis_port=${REDIS_PORT}" \
     -e "redis_pass=${REDIS_PASSWORD}" \
     -e "server_port=${PANEL_PORT}" \
+    -e "GRPC_CLIENT_CERT_PATH=${GRPC_CLIENT_CERT_PATH}" \
+    -e "GRPC_CLIENT_KEY_PATH=${GRPC_CLIENT_KEY_PATH}" \
+    -e "GRPC_SERVER_CA_PATH=${GRPC_SERVER_CA_PATH}" \
     "${PANEL_IMAGE}"
   wait_for_container "${PANEL_CONTAINER}"
 }
@@ -937,12 +980,12 @@ deploy_core() {
   docker run -d --name "${CORE_CONTAINER}" --restart always \
     --network=host \
     -v "${TP_DATA}/trojan-panel-core/bin/xray/config/:${TP_DATA}/trojan-panel-core/bin/xray/config/" \
-    -v "${TP_DATA}/trojan-panel-core/bin/trojango/config/:${TP_DATA}/trojan-panel-core/bin/trojango/config/" \
-    -v "${TP_DATA}/trojan-panel-core/bin/hysteria/config/:${TP_DATA}/trojan-panel-core/bin/hysteria/config/" \
     -v "${TP_DATA}/trojan-panel-core/bin/naiveproxy/config/:${TP_DATA}/trojan-panel-core/bin/naiveproxy/config/" \
     -v "${TP_DATA}/trojan-panel-core/bin/hysteria2/config/:${TP_DATA}/trojan-panel-core/bin/hysteria2/config/" \
     -v "${TP_DATA}/trojan-panel-core/logs/:${TP_DATA}/trojan-panel-core/logs/" \
     -v "${TP_DATA}/trojan-panel-core/config/:${TP_DATA}/trojan-panel-core/config/" \
+    -v "${TP_DATA}/trojan-panel-core/pki/:${TP_DATA}/trojan-panel-core/pki/:ro" \
+    -v "${KERNEL_RUNTIME_PATH}:${TP_DATA}/trojan-panel-core/runtime/" \
     -v "${cert_data}:${cert_data}" \
     -v "${WEB_PATH}:${WEB_PATH}" \
     -v /etc/localtime:/etc/localtime \
@@ -959,6 +1002,9 @@ deploy_core() {
     -e "crt_path=${crt_path}" \
     -e "key_path=${key_path}" \
     -e "grpc_port=${GRPC_PORT}" \
+    -e "grpc_tls_mode=${GRPC_TLS_MODE}" \
+    -e "grpc_client_ca_path=${GRPC_CLIENT_CA_PATH}" \
+    -e "TP_KERNEL_RUNTIME=${TP_DATA}/trojan-panel-core/runtime" \
     -e "server_port=${CORE_PORT}" \
     "${CORE_IMAGE}"
   wait_for_container "${CORE_CONTAINER}"
@@ -972,6 +1018,7 @@ deploy_web() {
   init_web_secrets
   load_image_archives
   prepare_dirs
+  install_pki_material
   deploy_mariadb
   deploy_redis
   write_panel_runtime_config
@@ -984,9 +1031,7 @@ deploy_web() {
   echo_content skyBlue "Trojan Panel web side deployed"
   echo_content yellow "URL: https://${TP_WEB_DOMAIN}"
   echo_content yellow "Default username: sysadmin"
-  echo_content yellow "Default password: 123456"
-  echo_content yellow "MariaDB root password: ${MARIADB_PASSWORD}"
-  echo_content yellow "Redis password: ${REDIS_PASSWORD}"
+  echo_content yellow "Credentials are stored in the restricted deployment configuration and are not printed."
   echo_content red "==============================================================\n"
 }
 
@@ -998,6 +1043,7 @@ deploy_web_source() {
   init_web_secrets
   load_image_archives
   prepare_dirs
+  install_pki_material
   deploy_mariadb
   deploy_redis
   write_panel_runtime_config
@@ -1012,9 +1058,7 @@ deploy_web_source() {
   echo_content yellow "Backend repo: ${PANEL_REPO} (${PANEL_BRANCH})"
   echo_content yellow "UI repo: ${UI_REPO} (${UI_BRANCH})"
   echo_content yellow "Default username: sysadmin"
-  echo_content yellow "Default password: 123456"
-  echo_content yellow "MariaDB root password: ${MARIADB_PASSWORD}"
-  echo_content yellow "Redis password: ${REDIS_PASSWORD}"
+  echo_content yellow "Credentials are stored in the restricted deployment configuration and are not printed."
   echo_content red "==============================================================\n"
 }
 
@@ -1029,6 +1073,7 @@ deploy_node() {
   install_docker
   load_image_archives
   prepare_dirs
+  install_pki_material
   prepare_static_web
   write_node_caddyfile "${TP_NODE_DOMAIN}"
   if [[ "${TP_FORCE}" == "1" && "${LEGACY_NODE_CADDY_CONTAINER}" != "${NODE_CADDY_CONTAINER}" ]]; then
