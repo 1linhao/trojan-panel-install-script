@@ -738,7 +738,6 @@ EOF
 
 deploy_mariadb() {
   persist_container_path "${MARIADB_CONTAINER}" "/var/lib/mysql" "${TP_DATA}/mariadb/data"
-  remove_container_if_force "${MARIADB_CONTAINER}"
   if container_running "${MARIADB_CONTAINER}"; then
     echo_content skyBlue "---> MariaDB already running"
     return
@@ -766,7 +765,6 @@ deploy_mariadb() {
 
 deploy_redis() {
   persist_container_path "${REDIS_CONTAINER}" "/data" "${TP_DATA}/redis/data"
-  remove_container_if_force "${REDIS_CONTAINER}"
   if container_running "${REDIS_CONTAINER}"; then
     echo_content skyBlue "---> Redis already running"
     return
