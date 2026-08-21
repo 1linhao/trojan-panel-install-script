@@ -36,6 +36,7 @@ PANEL_PORT="${PANEL_PORT:-8081}"
 UI_PORT="${UI_PORT:-8888}"
 CORE_PORT="${CORE_PORT:-8082}"
 GRPC_PORT="${GRPC_PORT:-8100}"
+NODE_SERVER_ID="${NODE_SERVER_ID:-0}"
 GRPC_TLS_MODE="${GRPC_TLS_MODE:-legacy}"
 GRPC_TLS_SERVER_NAME="${GRPC_TLS_SERVER_NAME:-}"
 GRPC_CLIENT_CA_PATH="${GRPC_CLIENT_CA_PATH:-${TP_DATA}/trojan-panel-core/pki/client-ca.crt}"
@@ -286,6 +287,7 @@ load_config() {
   cfg_apply "${file}" UI_PORT ui_port
   cfg_apply "${file}" CORE_PORT core_port
   cfg_apply "${file}" GRPC_PORT grpc_port
+  cfg_apply "${file}" NODE_SERVER_ID node_server_id
   cfg_apply "${file}" GRPC_TLS_MODE grpc_tls_mode
   cfg_apply "${file}" GRPC_TLS_SERVER_NAME grpc_tls_server_name
   cfg_apply "${file}" GRPC_CLIENT_CA_PATH grpc_client_ca_path
@@ -536,6 +538,8 @@ tls_mode=${GRPC_TLS_MODE}
 client_ca_path=${GRPC_CLIENT_CA_PATH}
 [server]
 port=${CORE_PORT}
+[node]
+server_id=${NODE_SERVER_ID}
 EOF
   chmod 600 "${TP_DATA}/trojan-panel-core/config/config.ini"
 }
@@ -1000,6 +1004,7 @@ deploy_core() {
     -e "crt_path=${crt_path}" \
     -e "key_path=${key_path}" \
     -e "grpc_port=${GRPC_PORT}" \
+	-e "NODE_SERVER_ID=${NODE_SERVER_ID}" \
     -e "grpc_tls_mode=${GRPC_TLS_MODE}" \
     -e "grpc_client_ca_path=${GRPC_CLIENT_CA_PATH}" \
     -e "TP_KERNEL_RUNTIME=${TP_DATA}/trojan-panel-core/runtime" \

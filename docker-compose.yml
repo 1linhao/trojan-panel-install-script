@@ -91,6 +91,7 @@ services:
       - "crt_path=/tpdata/cert/${domain}.crt"
       - "key_path=/tpdata/cert/${domain}.key"
       - "grpc_port=8100"
+      - "NODE_SERVER_ID=${node_server_id:-0}"
       - "server_port=8082"
       - "grpc_tls_mode=${grpc_tls_mode:-legacy}"
       - "grpc_client_ca_path=/tpdata/trojan-panel-core/pki/client-ca.crt"
